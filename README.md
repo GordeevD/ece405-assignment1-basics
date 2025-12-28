@@ -52,7 +52,7 @@ gunzip owt_valid.txt.gz
 cd ..
 ```
 
-### [Click here](https://colab.research.google.com/drive/1_zYjI4dqgPLwBL1vrp3adA4sfW_qk-1t?usp=sharing) for an example setup at Colab
+### [Click here](https://colab.research.google.com/drive/10qZA9UZwdm52ecPP1UrZmYIKHqpJoH51?usp=sharing) for an example setup at Colab
 
 
 
