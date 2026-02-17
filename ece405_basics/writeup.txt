@@ -1,0 +1,146 @@
+Problem (unicode1): Understanding Unicode (1 point)
+(a) What Unicode character does chr(0) return?
+
+Deliverable: 
+
+Answer:
+Will return NULL that is not printable
+
+(b) How does this character’s string representation (__repr__()) differ from its printed representa-
+tion?
+
+Deliverable: 
+
+Answer:
+print(repr(chr(0))) will print '\x00' 
+
+(c) What happens when this character occurs in text? It may be helpful to play around with the
+following in your Python interpreter and see if it matches your expectations:
+>>> chr(0)
+>>> print(chr(0))
+>>> "this is a test" + chr(0) + "string"
+>>> print("this is a test" + chr(0) + "string")
+Deliverable: 
+
+Answer:
+Will not print anything from chr(0)
+
+
+
+Problem (unicode2): Unicode Encodings (3 points)
+(a) What are some reasons to prefer training our tokenizer on UTF-8 encoded bytes, rather than
+UTF-16 or UTF-32? It may be helpful to compare the output of these encodings for various
+input strings.
+Deliverable: A one-to-two sentence response.
+
+Answer:
+UTF-8 most common encoding on the web. Compact enough for a model
+Aπ🚀
+UTF-8 
+41 CF 80 F0 9F 9A 80
+Total: 7 bytes.
+
+UTF-16 (Balanced but Bloated)
+00 41 03 C0 D8 3D DE 80
+Total: 8 bytes.
+
+UTF-32 (Fixed & Massive)
+00 00 00 41 00 00 03 C0 00 01 F6 80
+Total: 12 bytes.
+
+
+(b) Consider the following (incorrect) function, which is intended to decode a UTF-8 byte string into
+a Unicode string. Why is this function incorrect? Provide an example of an input byte string
+that yields incorrect results.
+def decode_utf8_bytes_to_str_wrong(bytestring: bytes):
+return "".join([bytes([b]).decode("utf-8") for b in bytestring])
+>>> decode_utf8_bytes_to_str_wrong("hello".encode("utf-8"))
+'hello'
+Deliverable: An example input byte string for which decode_utf8_bytes_to_str_wrong pro-
+duces incorrect output, with a one-sentence explanation of why the function is incorrect.
+
+Answer:
+# The byte string for "é"
+input_bytes = b'\xc3\xa9'
+
+# This will raise a UnicodeDecodeError
+decode_utf8_bytes_to_str_wrong(input_bytes)
+
+The function is incorrect because it attempts to decode each byte in isolation, 
+failing to recognize that UTF-8 is a variable-width encoding where a single 
+character (like an emoji or accented letter) is often composed of a specific sequence of multiple bytes.
+
+
+(c) Give a two byte sequence that does not decode to any Unicode character(s).
+Deliverable: An example, with a one-sentence explanation
+
+Answer:
+0xC0 0xAF
+0xC0 is an invalid start byte because it's "overlong."
+0xAF is a valid continuation byte, but because the first byte is forbidden, 
+the decoder will throw an error or display a replacement character (like ****).
+
+
+
+
+Problem (train_bpe_tinystories): BPE Training on TinyStories (2 points)
+(a) Train a byte-level BPE tokenizer on the TinyStories dataset, using a maximum vocabulary size
+of 10,000. Make sure to add the TinyStories <|endoftext|> special token to the vocabulary.
+Serialize the resulting vocabulary and merges to disk for further inspection. How many hours
+and memory did training take? What is the longest token in the vocabulary? Does it make sense?
+Resource requirements: ≤30 minutes (no GPUs), ≤ 30GB RAM
+Hint You should be able to get under 2 minutes for BPE training using multiprocessing during
+pretokenization and the following two facts:
+(a) The <|endoftext|> token delimits documents in the data files.
+(b) The <|endoftext|> token is handled as a special case before the BPE merges are applied.
+Deliverable: A one-to-two sentence response.
+
+Answer:
+% uv run python -m ece405_basics.train_bpe_tinystories
+    Learned vocab size: 10000
+    Learned merges: 9743
+
+    Vocabulary serialized to ../ece405_basics/bpe_output/vocab.json
+    Merges serialized to ../ece405_basics/bpe_output/merges.json
+
+What is the longest token in the vocabulary?
+
+    Longest token length: 15 bytes
+    Longest token:  accomplishment
+
+How many hours and memory did training take?
+
+    Training time: 0.0204 hours (73.47 seconds)
+    Memory usage: 169.73 MB
+
+Does it make sense?
+
+    Looks fine.
+
+
+(b) Profile your code. What part of the tokenizer training process takes the most time?
+Deliverable: A one-to-two sentence response.
+
+Answer:
+% uv run python -m cProfile -o profile.stats -m ece405_basics.train_bpe_tinystories
+% uv run python -c "import pstats; p = pstats.Stats('profile.stats'); p.sort_stats('cumulative').print_stats(30)"
+
+Lambda function in max() - 36% of runtime
+
+
+
+
+Problem (train_bpe_expts_owt): BPE Training on OpenWebText (2 points)
+(a) Train a byte-level BPE tokenizer on the OpenWebText dataset, using a maximum vocabulary
+size of 32,000. Serialize the resulting vocabulary and merges to disk for further inspection. What
+is the longest token in the vocabulary? Does it make sense?
+Resource requirements: ≤12 hours (no GPUs), ≤ 100GB RAM
+Deliverable: A one-to-two sentence response.
+
+
+
+(b) Compare and contrast the tokenizer that you get training on TinyStories versus OpenWebText.
+Deliverable: A one-to-two sentence response.
+
+
+
