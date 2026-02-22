@@ -5,9 +5,9 @@ import psutil
 import os
 from bpe import train_bpe
 
-def train_bpe_tinystories():
+def train_bpe_expts_owt():
     FIXTURES_PATH = (pathlib.Path(__file__).resolve().parent.parent) / "tests/fixtures"
-    input_path = FIXTURES_PATH / "TinyStoriesV2-GPT4-train.txt"
+    input_path = FIXTURES_PATH / "owt_train.txt"
     
     # Track memory and time
     process = psutil.Process(os.getpid())
@@ -16,7 +16,7 @@ def train_bpe_tinystories():
     
     vocab, merges = train_bpe(
         input_path=input_path,
-        vocab_size=10000,
+        vocab_size=32000,
         special_tokens=["<|endoftext|>"],
     )
     
@@ -41,8 +41,8 @@ def train_bpe_tinystories():
         (pair[0].hex(), pair[1].hex()) for pair in merges
     ]
     
-    vocab_path = output_dir / "vocab.json"
-    merges_path = output_dir / "merges.json"
+    vocab_path = output_dir / "vocab_owt.json"
+    merges_path = output_dir / "merges_owt.json"
     
     with open(vocab_path, "w") as f:
         json.dump(vocab_serialized, f, indent=2)
@@ -67,5 +67,5 @@ def train_bpe_tinystories():
     print(f"Memory usage: {memory_used:.2f} MB")
 
 if __name__ == "__main__":    
-    train_bpe_tinystories()
+    train_bpe_expts_owt()
     

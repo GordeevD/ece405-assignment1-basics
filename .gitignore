@@ -165,3 +165,7 @@ tests/.DS_Store
 .DS_Store
 tests/fixtures/TinyStoriesV2-GPT4-valid.txt
 tests/fixtures/TinyStoriesV2-GPT4-train.txt
+tests/fixtures/owt_train.txt
+tests/fixtures/owt_valid.txt
+ece405_basics/bpe_output/merges_owt.json
+ece405_basics/bpe_output/vocab_owt.json

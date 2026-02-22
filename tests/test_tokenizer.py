@@ -5,6 +5,10 @@ import os
 import resource
 import sys
 
+import psutil
+import pytest
+import tiktoken
+
 from .adapters import get_tokenizer
 from .common import FIXTURES_PATH, gpt2_bytes_to_unicode
 
@@ -20,6 +24,7 @@ def memory_limit(max_mem):
             resource.setrlimit(resource.RLIMIT_AS, (process.memory_info().rss + max_mem, -1))
             try:
                 result = f(*args, **kwargs)
+            finally:
                 resource.setrlimit(resource.RLIMIT_AS, prev_limits)
         return wrapper
 

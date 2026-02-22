@@ -138,9 +138,87 @@ Resource requirements: ≤12 hours (no GPUs), ≤ 100GB RAM
 Deliverable: A one-to-two sentence response.
 
 
+% python3 ece405_basics/train_bpe_expts_owt.py  
+Learned vocab size: 32000
+Learned merges: 31743
+
+Vocabulary serialized to /ece405_basics/bpe_output/vocab_owt.json
+Merges serialized to /ece405_basics/bpe_output/merges_owt.json
+
+Longest token length: 64 bytes
+Longest token: ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ
+
+Training time: 5.0110 hours (18039.62 seconds)
+Memory usage: 10873.41 MB
+
+
 
 (b) Compare and contrast the tokenizer that you get training on TinyStories versus OpenWebText.
 Deliverable: A one-to-two sentence response.
 
+73.47 seconds vs. 5.0110 hours
+vocab size: 10000 vs. 32000
+Memory usage: 169.73 MB vs 10873.41 MB
 
+
+2.7 Experiments
+Problem (tokenizer_experiments): Experiments with tokenizers (4 points)
+(a) Sample 10 documents from TinyStories and OpenWebText. Using your previously-trained TinyS-
+tories and OpenWebText tokenizers (10K and 32K vocabulary size, respectively), encode these
+sampled documents into integer IDs. What is each tokenizer’s compression ratio (bytes/token)?
+Deliverable: A one-to-two sentence response.
+
+Answer:
+
+python3 ece405_basics/tokenizer_experiments.py
+TinyStories tokenizer (10k vocab) on TinyStories sample (10 docs):
+  total bytes   = 7402
+  total tokens  = 1730
+  bytes/token   = 4.2786
+
+OpenWebText tokenizer (32k vocab) on OpenWebText sample (10 docs):
+  total bytes   = 34104
+  total tokens  = 7552
+  bytes/token   = 4.5159
+
+(b) What happens if you tokenize your OpenWebText sample with the TinyStories tokenizer? Com-
+pare the compression ratio and/or qualitatively describe what happens.
+Deliverable: A one-to-two sentence response.
+
+Answer:
+
+% python3 ece405_basics/tokenizer_experiments.py
+
+Tokenizing the OpenWebText sample with the TinyStories tokenizer 
+gives significantly worse compression than the OpenWebText tokenizer: 
+about 3.31 bytes/token vs 4.52 bytes/token (so the TinyStories tokenizer needs ~36% more tokens for the same text).
+
+(c) Estimate the throughput of your tokenizer (e.g., in bytes/second). How long would it take to
+tokenize the Pile dataset (825GB of text)?
+Deliverable: A one-to-two sentence response.
+
+Answer:
+
+% python3 ece405_basics/tokenizer_experiments.py
+
+TinyStories: elapsed encode time 0.000919 s, 8.051 MB/s, 28.46 hours for 825GB
+OpenWebText: elapsed encode time 0.003596 s, 9.485 MB/s, 24.16 hours for 825GB
+
+(d) Using your TinyStor'
+ies and OpenWebText tokenizers, encode the respectiv
+e training and devel-
+opment datasets into a sequence of in
+teger token IDs. We’ll use this later to train our language
+model. We recommend se
+rializing the token IDs as a NumPy array of datatype uint16. Why is
+uint16 an app
+ropriate choice?
+
+Answer:
+
+uint16 is appropriate because token IDs only need to cover the vocabulary size, 
+and both of tokenizers are far below 65536 IDs (TinyStories: 10k, OpenWebText: 32k, 
+plus special tokens). Using uint16 therefore stores every token ID safely while 
+cutting storage roughly  in half versus int32 (and to one-quarter of int64), 
+which is important for large encoded train/dev arrays.
 

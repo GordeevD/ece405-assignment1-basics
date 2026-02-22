@@ -4,6 +4,9 @@ from multiprocessing import Pool
 from typing import Dict, List, Tuple
 from collections import defaultdict
 
+GPT2_PRETOKEN_PATTERN = r"'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"
+GPT2_PRETOKEN_REGEX = re.compile(GPT2_PRETOKEN_PATTERN)
+
 def pretokenize(text):
     """Split text into pretokens using GPT-2 style pattern matching.
     
@@ -20,9 +23,40 @@ def pretokenize(text):
     Yields:
         str: Individual pretokens extracted from the text
     """
-    pattern = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
-    for m in re.finditer(pattern, text):
+    for m in GPT2_PRETOKEN_REGEX.finditer(text):
         yield m.group(0)
+
+
+def pretokenize_with_remainder(text: str) -> tuple[list[str], str]:
+    """Pretokenize text and return any trailing partial token as remainder.
+
+    This is used for streaming tokenization where input may end mid-token.
+
+    Args:
+        text: Input text chunk to pretokenize.
+
+    Returns:
+        tuple[list[str], str]:
+            - Complete pretokens extracted from the chunk
+            - Remaining text suffix that may form a partial token
+    """
+    tokens: list[str] = []
+    position = 0
+
+    while position < len(text):
+        match = GPT2_PRETOKEN_REGEX.match(text, position, partial=True)
+        if match is None:
+            tokens.append(text[position])
+            position += 1
+            continue
+
+        if match.partial:
+            return tokens, text[position:]
+
+        tokens.append(match.group(0))
+        position = match.end()
+
+    return tokens, ""
 
 def count_pairs(ids, weight=1, counts=None):
     """Count consecutive pairs in a sequence of IDs with optional weighting.
