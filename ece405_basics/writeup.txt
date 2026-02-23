@@ -222,3 +222,186 @@ plus special tokens). Using uint16 therefore stores every token ID safely while
 cutting storage roughly  in half versus int32 (and to one-quarter of int64), 
 which is important for large encoded train/dev arrays.
 
+
+
+3.4.2 Linear Module
+Problem (linear): Implementing the linear module (1 point)
+
+ece405_basics/linear.py
+
+uv run pytest -k test_linear
+
+
+3.4.3 Embedding Module
+Problem (embedding): Implement the embedding module (1 point)
+
+ece405_basics/embedding.py
+
+uv run pytest -k test_embedding
+
+
+3.5.1 Root Mean Square Layer Normalization
+Problem (rmsnorm): Root Mean Square Layer Normalization (1 point)
+
+ece405_basics/rmsnorm.py
+
+uv run pytest -k test_rmsnorm
+
+3.5.2 Position-Wise Feed-Forward Network
+Problem (positionwise_feedforward): Implement the position-wise feed-forward network
+(2 points)
+
+ece405_basics/positionwise_feedforward.py
+
+uv run pytest -k test_swiglu
+
+
+Problem (rope): Implement RoPE (2 points)
+
+ece405_basics/rope.py
+
+uv run pytest -k test_rope
+
+
+
+3.5.4 Scaled Dot-Product Attention
+Problem (scaled_dot_product_attention): Implement scaled dot-product attention
+(5 points)
+
+ece405_basics/scaled_dot_product_attention.py
+
+uv run pytest -k test_scaled_dot_product_attention
+
+3.5.5 Causal Multi-Head Self-Attention
+Problem (multihead_self_attention): Implement causal multi-head self-attention (5
+points)
+
+ece405_basics/multihead_self_attention.py
+
+uv run pytest -k test_multihead_self_attention
+
+
+
+
+3.6 The Full Transformer LM
+Problem (transformer_block): Implement the Transformer block (3 points)
+
+ece405_basics/transformer_block.py
+
+uv run pytest -k test_transformer_block
+
+
+Problem (transformer_lm): Implementing the Transformer LM (3 points)
+
+ece405_basics/transformer_lm.py
+
+uv run pytest -k test_transformer_lm
+
+
+Problem (transformer_accounting): Transformer LM resource accounting (5 points)
+
+ece405_basics/transformer_accounting.py
+
+uv run pytest -k test_transformer_accounting
+
+Problem (transformer_accounting): Transformer LM resource accounting (5 points)
+(a) Consider GPT-2 XL, which has the following configuration:
+vocab_size : 50,257
+context_length : 1,024
+num_layers : 48
+d_model : 1,600
+num_heads : 25
+d_ff : 6,400
+Suppose we constructed our model using this configuration. How many trainable parameters
+would our model have? Assuming each parameter is represented using single-precision floating
+point, how much memory is required to just load this model?
+Deliverable: A one-to-two sentence response.
+
+Answer: python3 -m ece405_basics.transformer_accounting
+Parameters: 2,127,057,600
+FP32 memory (bytes): 8,508,230,400
+FP32 memory (GiB): 7.9239
+FP32 memory (GB): 8.5082
+
+(b) Identify the matrix multiplies required to complete a forward pass of our GPT-2 XL-shaped
+model. How many FLOPs do these matrix multiplies require in total? Assume that our input
+sequence has context_length tokens.
+Deliverable: A list of matrix multiplies (with descriptions), and the total number of FLOPs
+required.
+
+Answer: python3 -m ece405_basics.transformer_accounting
+Forward matmul FLOPs breakdown:
+- Q, K, V projections: (B*T x d) @ (d x d) | count=144 | FLOPs=754,974,720,000
+- Attention output projection: (B*T x d) @ (d x d) | count=48 | FLOPs=251,658,240,000
+- Attention scores QK^T per head: (B*T x d_h) @ (d_h x T) | count=1,200 | FLOPs=161,061,273,600
+- Attention-weighted values per head: (B*T x T) @ (T x d_h) | count=1,200 | FLOPs=161,061,273,600
+- SwiGLU w1: (B*T x d) @ (d x d_ff) | count=48 | FLOPs=1,006,632,960,000
+- SwiGLU w3: (B*T x d) @ (d x d_ff) | count=48 | FLOPs=1,006,632,960,000
+- SwiGLU w2: (B*T x d_ff) @ (d_ff x d) | count=48 | FLOPs=1,006,632,960,000
+- Final LM head: (B*T x d) @ (d x vocab_size) | count=1 | FLOPs=164,682,137,600
+Total forward matmul FLOPs: 4,513,336,524,800
+Matches expected total: True
+
+(c) Based on your analysis above, which parts of the model require the most FLOPs?
+Deliverable: A one-to-two sentence response.
+
+Answer:
+The SwiGLU feed-forward layers
+
+(d) Repeat your analysis with GPT-2 small (12 layers, 768 d_model, 12 heads), GPT-2 medium (24
+layers, 1024 d_model, 16 heads), and GPT-2 large (36 layers, 1280 d_model, 20 heads). As the
+model size increases, which parts of the Transformer LM take up proportionally more or less of
+the total FLOPs?
+Deliverable: For each model, provide a breakdown of model components and its associated
+FLOPs (as a proportion of the total FLOPs required for a forward pass). In addition, provide a
+one-to-two sentence description of how varying the model size changes the proportional FLOPs
+of each component.
+
+Answer: python3 -m ece405_basics.transformer_accounting
+GPT-2 small/medium/large FLOPs proportions:
+gpt2-small total FLOPs: 349,630,365,696
+- Q, K, V projections: (B*T x d) @ (d x d) | FLOPs=43,486,543,872 | proportion=12.4379%
+- Attention output projection: (B*T x d) @ (d x d) | FLOPs=14,495,514,624 | proportion=4.1460%
+- Attention scores QK^T per head: (B*T x d_h) @ (d_h x T) | FLOPs=19,327,352,832 | proportion=5.5279%
+- Attention-weighted values per head: (B*T x T) @ (T x d_h) | FLOPs=19,327,352,832 | proportion=5.5279%
+- SwiGLU w1: (B*T x d) @ (d x d_ff) | FLOPs=57,982,058,496 | proportion=16.5838%
+- SwiGLU w3: (B*T x d) @ (d x d_ff) | FLOPs=57,982,058,496 | proportion=16.5838%
+- SwiGLU w2: (B*T x d_ff) @ (d_ff x d) | FLOPs=57,982,058,496 | proportion=16.5838%
+- Final LM head: (B*T x d) @ (d x vocab_size) | FLOPs=79,047,426,048 | proportion=22.6089%
+gpt2-medium total FLOPs: 1,033,109,504,000
+- Q, K, V projections: (B*T x d) @ (d x d) | FLOPs=154,618,822,656 | proportion=14.9664%
+- Attention output projection: (B*T x d) @ (d x d) | FLOPs=51,539,607,552 | proportion=4.9888%
+- Attention scores QK^T per head: (B*T x d_h) @ (d_h x T) | FLOPs=51,539,607,552 | proportion=4.9888%
+- Attention-weighted values per head: (B*T x T) @ (T x d_h) | FLOPs=51,539,607,552 | proportion=4.9888%
+- SwiGLU w1: (B*T x d) @ (d x d_ff) | FLOPs=206,158,430,208 | proportion=19.9551%
+- SwiGLU w3: (B*T x d) @ (d x d_ff) | FLOPs=206,158,430,208 | proportion=19.9551%
+- SwiGLU w2: (B*T x d_ff) @ (d_ff x d) | FLOPs=206,158,430,208 | proportion=19.9551%
+- Final LM head: (B*T x d) @ (d x vocab_size) | FLOPs=105,396,568,064 | proportion=10.2019%
+gpt2-large total FLOPs: 2,257,754,521,600
+- Q, K, V projections: (B*T x d) @ (d x d) | FLOPs=362,387,865,600 | proportion=16.0508%
+- Attention output projection: (B*T x d) @ (d x d) | FLOPs=120,795,955,200 | proportion=5.3503%
+- Attention scores QK^T per head: (B*T x d_h) @ (d_h x T) | FLOPs=96,636,764,160 | proportion=4.2802%
+- Attention-weighted values per head: (B*T x T) @ (T x d_h) | FLOPs=96,636,764,160 | proportion=4.2802%
+- SwiGLU w1: (B*T x d) @ (d x d_ff) | FLOPs=483,183,820,800 | proportion=21.4011%
+- SwiGLU w3: (B*T x d) @ (d x d_ff) | FLOPs=483,183,820,800 | proportion=21.4011%
+- SwiGLU w2: (B*T x d_ff) @ (d_ff x d) | FLOPs=483,183,820,800 | proportion=21.4011%
+- Final LM head: (B*T x d) @ (d x vocab_size) | FLOPs=131,745,710,080 | proportion=5.8353%
+
+(e) Take GPT-2 XL and increase the context length to 16,384. How does the total FLOPs for one
+forward pass change? How do the relative contribution of FLOPs of the model components
+change?
+Deliverable: A one-to-two sentence response.
+
+Answer: python3 -m ece405_basics.transformer_accounting
+GPT-2 XL context scaling (1024 -> 16384):
+Base total FLOPs: 4,513,336,524,800
+New total FLOPs: 149,522,795,724,800
+Total FLOPs multiplier: 33.1291x
+- Q, K, V projections: (B*T x d) @ (d x d) | base=16.7276% | new=8.0788%
+- Attention output projection: (B*T x d) @ (d x d) | base=5.5759% | new=2.6929%
+- Attention scores QK^T per head: (B*T x d_h) @ (d_h x T) | base=3.5686% | new=27.5755%
+- Attention-weighted values per head: (B*T x T) @ (T x d_h) | base=3.5686% | new=27.5755%
+- SwiGLU w1: (B*T x d) @ (d x d_ff) | base=22.3035% | new=10.7717%
+- SwiGLU w3: (B*T x d) @ (d x d_ff) | base=22.3035% | new=10.7717%
+- SwiGLU w2: (B*T x d_ff) @ (d_ff x d) | base=22.3035% | new=10.7717%
+- Final LM head: (B*T x d) @ (d x vocab_size) | base=3.6488% | new=1.7622%

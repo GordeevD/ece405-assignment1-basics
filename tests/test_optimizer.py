@@ -2,6 +2,9 @@ import numpy
 import torch
 
 from .adapters import get_adamw_cls, run_get_lr_cosine_schedule
+
+def _optimize(opt_class) -> torch.Tensor:
+    torch.manual_seed(42)
     model = torch.nn.Linear(3, 2, bias=False)
     opt = opt_class(
         model.parameters(),
