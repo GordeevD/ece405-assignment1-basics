@@ -405,3 +405,218 @@ Total FLOPs multiplier: 33.1291x
 - SwiGLU w3: (B*T x d) @ (d x d_ff) | base=22.3035% | new=10.7717%
 - SwiGLU w2: (B*T x d_ff) @ (d_ff x d) | base=22.3035% | new=10.7717%
 - Final LM head: (B*T x d) @ (d x vocab_size) | base=3.6488% | new=1.7622%
+
+
+
+4. Training a Transformer LM
+
+4.1 Cross-entropy loss
+Problem (cross_entropy): Implement Cross entropy
+
+ece405_basics/cross_entropy.py
+
+uv run pytest -k test_cross_entropy
+
+
+4.2 The SGD Optimizer
+4.2.1 Implementing SGD in PyTorch
+
+Problem (learning_rate_tuning): Tuning the learning rate (1 point)
+Deliverable: A one-to-two sentence response with the behaviors observed.
+
+Answer: ece405_basics/learning_rate_tuning.py
+A larger learning rate can accelerate convergence up to a point, 
+but too large a value becomes unstable.
+
+
+4.3 AdamW
+Problem (adamw): Implement AdamW (2 points)
+
+ece405_basics/adamw.py
+
+uv run pytest -k test_adamw
+
+
+Problem (adamwAccounting): Resource accounting for training with AdamW (2 points)
+
+(a) How much peak memory does running AdamW require? Decompose your answer based on the
+memory usage of the parameters, activations, gradients, and optimizer state. Express your answer
+in terms of the batch_size and the model hyperparameters (vocab_size, context_length,
+num_layers, d_model, num_heads). Assume d_ff = 4 ×d_model.
+For simplicity, when calculating memory usage of activations, consider only the following compo-
+nents:
+• Transformer block
+– RMSNorm(s)
+– Multi-head self-attention sublayer: QKV projections, Q⊤K matrix multiply, softmax,
+weighted sum of values, output projection.
+– Position-wise feed-forward: W1 matrix multiply, SiLU, W2 matrix multiply
+• final RMSNorm
+• output embedding
+• cross-entropy on logits
+Deliverable: An algebraic expression for each of parameters, activations, gradients, and opti-
+mizer state, as well as the total.
+
+Answer: python3 -m ece405_basics.adamwAccounting
+
+Algebraic expressions:
+- parameters_elements: P = 2Vd + L(4d^2 + 2dd_ff + 2d) + d, with d_ff = 4d; equivalently P = 2Vd + 12Ld^2 + (2L + 1)d
+- activations_elements: A = L[2BTd + 3BTd + BHT^2 + BHT^2 + BTd + BTd + BTd_ff + BTd_ff + BTd] + BTd + BTV + BTV, with d_ff = 4d; equivalently A = L(16BTd + 2BHT^2) + BTd + 2BTV
+- gradients_elements: G = P
+- optimizer_state_elements: O = 2P (AdamW moments m and v)
+- total_peak_bytes: M_peak = 4(P + A + G + O) = 4(A + 4P) bytes (float32, 4 bytes per element)
+
+
+
+(b) Instantiate your answer for a GPT-2 XL-shaped model to get an expression that only depends on
+the batch_size. What is the maximum batch size you can use and still fit within 80GB memory?
+Deliverable: An expression that looks like a ·batch_size + b for numerical values a, b, and a
+number representing the maximum batch size.
+
+Answer: python3 -m ece405_basics.adamwAccounting
+
+GPT-2 XL instantiation (80 GB limit):
+- M_peak(B) = 15,517,753,344 * B + 26,168,601,600 bytes
+- M_peak(B) = 15.517753344 * B + 26.168601600 GB
+- Max batch size under 80 GB: 3
+
+
+(c) How many FLOPs does running one step of AdamW take?
+Deliverable: An algebraic expression, with a brief justification.
+
+Answer: python3 -m ece405_basics.adamwAccounting
+
+F_AdamW_step = 16P FLOPs, where P is the number of trainable parameters.
+Each parameter element performs about 16 floating-point ops in AdamW: 
+m update (3), v update (4), bias corrections (2), sqrt+eps (2), 
+normalization divide (1), and decoupled weight-decay + parameter update (4). 
+Ignoring O(1) scalar terms, total cost is linear in parameter count.
+
+
+(d) Model FLOPs utilization (MFU) is defined as the ratio of observed throughput (tokens per second)
+relative to the hardware’s theoretical peak FLOP throughput [Chowdhery et al., 2022]. An
+NVIDIA A100 GPU has a theoretical peak of 19.5 teraFLOP/s for float32 operations. Assuming
+you are able to get 50% MFU, how long would it take to train a GPT-2 XL for 400K steps and a
+batch size of 1024 on a single A100? Following Kaplan et al. [2020] and Hoffmann et al. [2022],
+assume that the backward pass has twice the FLOPs of the forward pass.
+Deliverable: The number of days training would take, with a brief justification.
+
+Answer: python3 -m ece405_basics.adamwAccounting
+AdamW one-step FLOPs:
+- F_AdamW_step = 16P FLOPs, where P is the number of trainable parameters (ignoring O(1) scalar ops). Per parameter element: m update (3) + v update (4) + bias corrections m_hat/v_hat (2) + sqrt+eps (2) + normalization divide (1) + decoupled weight decay and parameter update (4) = 16 FLOPs.
+- GPT-2 XL instantiation: F_AdamW_step = 26,168,601,600 FLOPs
+
+MFU training-time estimate (single A100, GPT-2 XL):
+- days = [steps * batch_size * F_fwd(B=1) * (1 + r_bw)] / [MFU * F_peak] / 86400, where r_bw is backward-to-forward FLOPs ratio (r_bw = 2 here).
+- Estimated training time for 400k steps, batch size 1024: 6583.56 days
+
+
+
+4.4 Learning rate scheduling
+
+Problem (learning_rate_schedule): Implement cosine learning rate schedule with
+warmup
+
+ece405_basics/learning_rate_schedule.py
+
+uv run pytest -k test_get_lr_cosine_schedule
+
+
+4.5 Gradient clipping
+Problem (gradient_clipping): Implement gradient clipping (1 point)
+
+ece405_basics/gradient_clipping.py
+
+uv run pytest -k test_gradient_clipping
+
+
+
+5. Training loop
+5.1 Data Loader
+
+Problem (data_loading): Implement data loading (2 points)
+
+ece405_basics/data_loading.py
+
+uv run pytest -k test_get_batch
+
+
+5.2 Checkpointing
+Problem (checkpointing): Implement model checkpointing (1 point)
+
+ece405_basics/checkpointing.py
+
+uv run pytest -k test_checkpointing
+
+
+5.3 Training loop
+Problem (training_together): Put it together (4 points)
+
+ece405_basics/training_together.py
+
+
+6. Generating text
+Problem (decoding): Decoding (3 points)
+
+ece405_basics/decoding.py
+
+
+
+7. Experiments
+7.1 How to Run Experiments and Deliverables
+Problem (experiment_log): Experiment logging (3 points)
+
+ece405_basics/experiment_log.py
+
+7.2 TinyStories
+Problem (learning_rate): Tune the learning rate (3 points) (4 H100 hrs)
+
+ece405_basics/learning_rate.py
+
+Custom LR sweep test: 
+uv run python -m ece405_basics.tinystories_example --device mps --learning-rates 1e-4,2e-4,3e-4,5e-4,8e-4,1e-3
+
+Took too long.
+
+
+Problem (batch_size_experiment): Batch size variations (1 point) (2 H100 hrs)
+
+test run: 
+uv run python -m ece405_basics.batch_size_experiment --device mps --include-auto-max-batch
+
+Took too long.
+
+
+
+Problem (generate): Generate text (1 point)
+
+uv run python -m ece405_basics.generate --checkpoint-path [ckpt_lr_1e-03.pt](http://_vscodecontentref_/0) --config-path [config.json](http://_vscodecontentref_/1) --tokenizer-vocab [vocab.json](http://_vscodecontentref_/2) --tokenizer-merges [merges.json](http://_vscodecontentref_/3) --prompt "Once upon a time" --max-new-tokens 256 --temperature 0.9 --top-p 0.95 --device auto --output-path experiments/generation_report_latest.txt
+
+Didn't get the result from training.
+
+
+
+7.3 Ablations and architecture modification
+
+Ablation 1: layer normalization
+Problem (layer_norm_ablation): Remove RMSNorm and train (1 point) (1 H100 hr)
+
+uv run python -m ece405_basics.layer_norm_ablation --device mps
+
+Problem (pre_norm_ablation): Implement post-norm and train (1 point) (1 H100 hr)
+
+Smoke-test:
+uv run python -m ece405_basics.pre_norm_ablation --device cpu --token-budget 32768 --batch-size 16 --context-length 64 --eval-interval 8 --log-interval 4 --checkpoint-interval 8 --eval-batches 2
+
+
+Ablation 2: position embeddings
+Problem (no_pos_emb): Implement NoPE (1 point) (1 H100 hr)
+uv run -m ece405_basics.no_pos_emb --token-budget 33000000 --device auto
+
+
+Ablation 3: SwiGLU vs. SiLU
+Problem (swiglu_ablation): SwiGLU vs. SiLU (1 point) (1 H100 hr)
+
+uv run python -m ece405_basics.swiglu_ablation --help
+
+
+
