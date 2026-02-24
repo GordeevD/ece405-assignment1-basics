@@ -35,8 +35,16 @@ class ExperimentLogger:
 
 		timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d-%H%M%S")
 		safe_name = _sanitize_run_name(run_name)
-		run_dir = experiment_root / f"{safe_name}-{timestamp}"
-		run_dir.mkdir(parents=True, exist_ok=False)
+		base_run_dir = experiment_root / f"{safe_name}-{timestamp}"
+		run_dir = base_run_dir
+		for attempt in range(1_000):
+			try:
+				run_dir.mkdir(parents=True, exist_ok=False)
+				break
+			except FileExistsError:
+				run_dir = experiment_root / f"{base_run_dir.name}-{attempt + 1:03d}"
+		else:
+			raise RuntimeError(f"Unable to create unique run directory under {experiment_root}")
 
 		self.paths = ExperimentPaths(
 			run_dir=run_dir,

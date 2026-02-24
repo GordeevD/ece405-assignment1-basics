@@ -207,6 +207,17 @@ def main() -> None:
 		start_iteration = load_checkpoint(args.resume_from, model, optimizer)
 		print(f"Resumed from {args.resume_from} at iteration {start_iteration}")
 
+	if hasattr(torch, "compile"):
+		try:
+			if device.type == "cpu":
+				model = torch.compile(model)
+				print("Enabled torch.compile for CPU training.")
+			elif device.type == "mps":
+				model = torch.compile(model, backend="aot_eager")
+				print("Enabled torch.compile(..., backend='aot_eager') for MPS training.")
+		except Exception as exc:
+			print(f"Warning: torch.compile setup failed; continuing without compile ({exc}).")
+
 	checkpoint_path = Path(args.checkpoint_path)
 	checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
 	run_name = args.run_name or args.wandb_run_name or checkpoint_path.stem

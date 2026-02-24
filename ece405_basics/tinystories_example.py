@@ -89,8 +89,10 @@ def parse_lr_list(value: str) -> list[float]:
 
 def maybe_disable_tf32_for_mps(device: torch.device) -> None:
 	if device.type == "mps":
+	#	torch.set_float32_matmul_precision("highest")
 		return
 	if device.type == "cuda":
+		torch.set_float32_matmul_precision("high")
 		torch.backends.cuda.matmul.allow_tf32 = True
 		torch.backends.cudnn.allow_tf32 = True
 

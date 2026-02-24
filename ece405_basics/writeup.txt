@@ -570,28 +570,136 @@ ece405_basics/experiment_log.py
 7.2 TinyStories
 Problem (learning_rate): Tune the learning rate (3 points) (4 H100 hrs)
 
+The learning rate is one of the most important hyperparameters to tune. Taking the base model
+you’ve trained, answer the following questions:
+(a) Perform a hyperparameter sweep over the learning rates and report the final losses (or note
+divergence if the optimizer diverges).
+Deliverable: Learning curves associated with multiple learning rates. Explain your hyperpa-
+rameter search strategy.
+Deliverable: A model with validation loss (per-token) on TinyStories of at most 1.45
+
+Answer:
+
 ece405_basics/learning_rate.py
 
 Custom LR sweep test: 
-uv run python -m ece405_basics.tinystories_example --device mps --learning-rates 1e-4,2e-4,3e-4,5e-4,8e-4,1e-3
 
-Took too long.
+uv run python -m ece405_basics.learning_rate  --device mps --lrs 1e-4,2e-4,3e-4,5e-4,8e-4,1e-3,0.01
+
+## Search strategy
+Coarse-to-fine around the stability edge: run increasing learning rates to find divergence, 
+then select the largest stable learning rate with best validation loss.
+
+## Sweep settings
+- learning_rates: 1.00e-04, 2.00e-04, 3.00e-04, 5.00e-04, 8.00e-04, 1.00e-03
+0.0001 - 0.1
+- total_tokens: 40000000
+- context_length: 256
+- batch_size: 64
+- target_val_loss: 2.0
+
+## Results
+
+| lr_max | status | best_val_loss | best_val_step | run_dir |
+| 1.00e-04 | completed | 6.3361 | 100 | experiments/lr-sweep-1e-04-20260223-111835 |
+| 2.00e-04 | completed | 6.2628 | 100 | experiments/lr-sweep-2e-04-20260223-121323 |
+| 3.00e-04 | completed | 6.2591 | 100 | experiments/lr-sweep-3e-04-20260223-135645 |
+| 5.00e-04 | completed | 6.2635 | 100 | experiments/lr-sweep-5e-04-20260223-142607 |
+| 8.00e-04 | completed | 6.3013 | 100 | experiments/lr-sweep-8e-04-20260223-145528 |
+| 1.00e-03 | completed | 6.2780 | 100 | experiments/lr-sweep-1e-03-20260223-152452 |
+
+| lr | status | final val loss | best val loss | best step | run dir |
+| 0.0001 | ok | 3.379166 | 3.379166 | 4882 | experiments/lr-sweep-1e-04-001-20260224-060803 |
+| 0.0002 | ok | 3.026007 | 3.026007 | 4882 | experiments/lr-sweep-2e-04-001-20260224-063658 |
+| 0.0003 | ok | 2.876508 | 2.876508 | 4882 | experiments/lr-sweep-3e-04-002-20260224-064223 |
+| 0.0005 | ok | 2.731657 | 2.731657 | 4882 | experiments/lr-sweep-5e-04-003-20260224-064754 |
+| 0.0008 | ok | 2.617306 | 2.617306 | 4882 | experiments/lr-sweep-8e-04-004-20260224-065317 |
+| 0.001 | ok | 2.570520 | 2.570520 | 4882 | experiments/lr-sweep-1e-03-005-20260224-065846 |
+| 0.0012 | ok | 2.538825 | 2.538825 | 4882 | experiments/lr-sweep-1e-03-001-20260224-071210 |
+| 0.0015 | ok | 2.510689 | 2.510689 | 4882 | experiments/lr-sweep-2e-03-002-20260224-071745 |
+| 0.002 | ok | 2.468856 | 2.468856 | 4882 | experiments/lr-sweep-2e-03-003-20260224-072320 |
+| 0.003 | ok | 2.433179 | 2.433179 | 4882 | experiments/lr-sweep-3e-03-004-20260224-072845 |
+| 0.01 | ok | 2.400309 | 2.400309 | 4882 | experiments/lr-sweep-1e-02-001-20260224-075323 |
+| 0.1 | ok | 2.551666 | 2.551666 | 4750 | experiments/lr-sweep-1e-01-001-20260224-075923 |
+
+
+## Analysis
+- Best stable run: lr=0.01 with best_val_loss=2.400309 at step 4882.
+- Target not met: best validation loss is above 2.00.
+
+
+
+(b) Folk wisdom is that the best learning rate is “at the edge of stability.” Investigate how the point
+at which learning rates diverge is related to your best learning rate.
+Deliverable: Learning curves of increasing learning rate which include at least one divergent
+run and an analysis of how this relates to convergence rates.
+
+Answer:
+
+Commands used:
+- uv run python -m ece405_basics.learning_rate --device mps --token-budget 2097152 --batch-size 32 --context-length 256 --eval-interval 16 --log-interval 8 --checkpoint-interval 64 --eval-batches 5 --lrs 0.01,0.03,0.1,0.3,1.0
+- uv run python -m ece405_basics.learning_rate --device mps --token-budget 524288 --batch-size 32 --context-length 256 --eval-interval 8 --log-interval 4 --checkpoint-interval 16 --eval-batches 4 --lrs 3.0,10.0,30.0
+- uv run python -m ece405_basics.learning_rate --device mps --token-budget 262144 --batch-size 32 --context-length 256 --eval-interval 8 --log-interval 4 --checkpoint-interval 16 --eval-batches 4 --lrs 100.0,300.0
+
+Search strategy:
+Increase LR monotonically to bracket the stability edge, then compare both convergence speed and endpoint validation loss.
+
+Learning curves (validation loss at common checkpoints; includes divergent run):
+
+| lr | status | val@8 | val@16 | val@32 | val@64 | val@128 | val@192 | val@256 | run_dir |
+| 0.01 | ok | - | 6.009 | 5.536 | 4.930 | 4.140 | 3.807 | 3.619 | experiments/lr-sweep-1e-02-001-20260224-090626 |
+| 0.1 | ok | - | 6.019 | 5.870 | 5.683 | 4.907 | 4.406 | 4.033 | experiments/lr-sweep-1e-01-003-20260224-090718 |
+| 1.0 | ok | - | 14.686 | 7.518 | 6.080 | 5.768 | 5.301 | 5.998 | experiments/lr-sweep-1e00-005-20260224-090811 |
+| 30.0 | ok (unstable) | 9.210 | 9.210 | 9.210 | 17.862 | - | - | - | experiments/lr-sweep-3e01-003-20260224-091237 |
+| 300.0 | diverged | nan | nan | nan | - | - | - | - | experiments/lr-sweep-3e02-002-20260224-091303 |
+
+Analysis (edge of stability vs. best LR and convergence rates):
+- Best learning rate in this sweep is lr=0.01 (best/final val loss 3.619 at step 256).
+- First formally divergent run appears at lr=300.0 (non-finite val loss from the first eval, step 8).
+- The hard divergence threshold is therefore much higher than the best LR (roughly 30000x larger), so in this setup the best LR is not numerically right at the divergence boundary.
+- Practical instability starts earlier: lr=30.0 shows severe loss spikes (e.g., val loss jumping to ~2.56e7 before partial recovery), and lr>=1.0 gives noisy curves and weaker final validation loss.
+- Convergence-rate comparison from stable runs (approx val-loss drop per 100 steps):
+  - lr=0.01: ~1.0 / 100 steps (fastest sustained improvement among stable runs)
+  - lr=0.1: ~0.83 / 100 steps
+  - lr=1.0: rapid early drop but poor late-stage stability and worse endpoint
+- Conclusion: this model/schedule (with clipping and cosine decay) favors an LR below the instability region; “edge of stability” is better interpreted as the onset of noisy/explosive curves, not only first NaN divergence.
+
+
+
 
 
 Problem (batch_size_experiment): Batch size variations (1 point) (2 H100 hrs)
+Vary your batch size all the way from 1 to the GPU memory limit. Try at least a few batch sizes
+in between, including typical sizes like 64 and 128.
+Deliverable: Learning curves for runs with different batch sizes. The learning rates should be
+optimized again if necessary.
+Deliverable: A few sentences discussing of your findings on batch sizes and their impacts on
+training.
 
-test run: 
-uv run python -m ece405_basics.batch_size_experiment --device mps --include-auto-max-batch
+Answer: 
+uv run python -m ece405_basics.batch_size_experiment --device mps --batch-sizes 1,8,32,64,128,256
 
-Took too long.
+uv run python -m ece405_basics.batch_size_experiment \
+  --device mps \
+  --batch-sizes 64 \
+  --use-wandb \
+  --wandb-project ece405-basics
 
+batch size 
+
+Larger batch sizes (64-256) produced more stable training curves with smoother validation loss trajectories, 
+as the gradient estimates become less noisy with more samples per update.
 
 
 Problem (generate): Generate text (1 point)
 
-uv run python -m ece405_basics.generate --checkpoint-path [ckpt_lr_1e-03.pt](http://_vscodecontentref_/0) --config-path [config.json](http://_vscodecontentref_/1) --tokenizer-vocab [vocab.json](http://_vscodecontentref_/2) --tokenizer-merges [merges.json](http://_vscodecontentref_/3) --prompt "Once upon a time" --max-new-tokens 256 --temperature 0.9 --top-p 0.95 --device auto --output-path experiments/generation_report_latest.txt
+Answer:
+uv run python -m ece405_basics.generate --checkpoint-path experiments_tmp/ckpt_lr_1e-02_001.pt --config-path experiments/lr-sweep-1e-02-001-20260224-104646/config.json --tokenizer-vocab ece405_basics/bpe_output/vocab.json --tokenizer-merges ece405_basics/bpe_output/merges.json --prompt "Once upon a time" --max-new-tokens 50 --temperature 0.9 --top-p 0.95 --device auto --output-path experiments/generation_report_latest.txt
 
-Didn't get the result from training.
+Generated text (50 tokens):
+"Once upon a timeilt Mrs rose monster explorers mom recorded worms spit intentlyedy thoughts Quick see digs applauded Samantha cartoonspping burns natural Jill squawushuUnfortunately relieved coop disappointed herb firefighter notice bushyitedcited ill letting behind earned bowed belongs Em's emergency sec messages dreaming powerful requestune"
+
+The model generates mostly English-like tokens but lacks coherence, which is expected given the small model size (d_model=64, 2 layers) and limited training. The output shows the model learned basic word patterns but struggles with semantic continuity.
 
 
 

@@ -171,3 +171,8 @@ ece405_basics/bpe_output/merges_owt.json
 ece405_basics/bpe_output/vocab_owt.json
 /experiments
 /experiments_tmp
+tests/fixtures/TinyStoriesV2-GPT4-valid.npy
+tests/fixtures/TinyStoriesV2-GPT4-train.npy
+tests/fixtures/tinystories_sample_5M.npy
+tests/fixtures/tinystories_sample.npy
+/wandb

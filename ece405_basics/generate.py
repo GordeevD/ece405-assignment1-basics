@@ -236,7 +236,13 @@ def main() -> None:
 	checkpoint = torch.load(checkpoint_path, map_location=device)
 	if "model_state_dict" not in checkpoint:
 		raise ValueError("Checkpoint missing key 'model_state_dict'")
-	model.load_state_dict(checkpoint["model_state_dict"])
+	
+	# Handle torch.compile prefix (_orig_mod.) if present
+	state_dict = checkpoint["model_state_dict"]
+	if any(k.startswith("_orig_mod.") for k in state_dict.keys()):
+		state_dict = {k.replace("_orig_mod.", ""): v for k, v in state_dict.items()}
+	
+	model.load_state_dict(state_dict)
 	model.eval()
 
 	prompt_token_ids = tokenizer.encode(args.prompt)
